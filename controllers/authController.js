@@ -1,0 +1,85 @@
+const User = require('../models/userModel');
+const jwt = require('jsonwebtoken');
+
+// Регистрация пользователя
+const registerUser = async (req, res) => {
+    const { username, pin } = req.body;
+
+    try {
+        // Приведение username к нижнему регистру
+        const lowerCaseUsername = username.toLowerCase();
+
+        // Проверяем, существует ли уже такой пользователь
+        const existingUser = await User.findOne({ username: lowerCaseUsername });
+
+        if (existingUser) {
+            return res.status(400).json({ message: 'Username already exists' });
+        }
+
+        // Создаем нового пользователя
+        const user = new User({ username: lowerCaseUsername, pin });
+
+        await user.save();
+
+        res.status(201).json({ message: 'User registered successfully' });
+    } catch (error) {
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ message: 'Username must be at least 2 characters long' });
+        }
+        res.status(500).json({ message: 'Server error', error });
+    }
+};
+
+
+
+const loginUser = async (req, res) => {
+    const { username, pin } = req.body;
+
+    try {
+        // Приведение username к нижнему регистру
+        const lowerCaseUsername = username.toLowerCase();
+
+        // Поиск пользователя по имени пользователя и пин-коду
+        const user = await User.findOne({ username: lowerCaseUsername });
+
+        if (!user) {
+            return res.status(400).json({ message: 'Invalid credentials' });
+        }
+
+        // Проверка пин-кода
+        const isMatch = await user.comparePin(pin);
+
+        if (!isMatch) {
+            return res.status(400).json({ message: 'Invalid credentials' });
+        }
+
+        // Создание JWT токена
+        const token = jwt.sign({ id: user._id, username: user.username }, process.env.JWT_SECRET, { expiresIn: '24h' });
+
+        res.status(200).json({ token });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error });
+    }
+};
+
+
+const getUser = (req, res) => {
+    try {
+        // Если authMiddleware прошел успешно, значит токен валидный
+        res.status(200).json({
+            message: 'Token is valid',
+            user: {
+                id: req.user.id,
+                username: req.user.username,
+            },
+        });
+    } catch (error) {
+        res.status(401).json({ message: 'Invalid token', error });
+    }
+};
+
+module.exports = {
+    registerUser,
+    loginUser,
+    getUser
+};
