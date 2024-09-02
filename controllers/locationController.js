@@ -4,8 +4,27 @@ const { yandexUpload, yandexDelete} = require("../utils/yandexRequestUpload");
 // Получение всех посещенных локаций
 const getVisitedLocations = async (req, res) => {
     try {
-        const locations = await Location.find({ user: req.user.id, visited: true }).sort({ date: -1 });
-        res.status(200).json(locations);
+        const visitedLocations = await Location.find({ user: req.user.id, visited: true })
+            .sort({ date: -1 }); // Сортируем по дате в порядке убывания
+
+        const groupedLocations = visitedLocations.reduce((acc, location) => {
+            const date = new Date(Number(location.date));
+            const dateKey = date.toDateString(); // Используем строковое представление даты как ключ
+
+            if (!acc[dateKey]) {
+                acc[dateKey] = {
+                    date: date, // Сохраняем объект Date
+                    locations: []
+                };
+            }
+
+            acc[dateKey].locations.push(location);
+            return acc;
+        }, {});
+
+        const result = Object.values(groupedLocations);
+
+        res.status(200).json(result);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error });
     }
@@ -25,6 +44,10 @@ const addLocation = async (req, res) => {
 
         // Парсим объект локации из формата formData
         const locationData = JSON.parse(req.body.data);
+
+        if (!(locationData.public && (locationData.files.length > 0 || req.files.length > 0) && locationData.name && locationData.location.name && locationData.location.coords.length === 2)) {
+            return res.status(400).json({ message: 'Fill all required fields' });
+        }
 
         // Валидация количества файлов
         if (req.files.length > 5) {
@@ -129,7 +152,7 @@ const updateLocation = async (req, res) => {
 const getPublicVisitedLocations = async (req, res) => {
     try {
         const locations = await Location.find({ public: true, visited: true })
-            .populate('user', 'username') // Популяция поля user и возврат только username
+            .populate('user', 'username profileImage')
             .sort({ date: -1 })
             .exec();
 

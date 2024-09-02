@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    profileImage: { type: String, default: '' }
 });
 
 // Приводим username к нижнему регистру перед сохранением
