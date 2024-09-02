@@ -45,8 +45,10 @@ const addLocation = async (req, res) => {
         // Парсим объект локации из формата formData
         const locationData = JSON.parse(req.body.data);
 
-        if (!(locationData.public && (locationData.files.length > 0 || req.files.length > 0) && locationData.name && locationData.location.name && locationData.location.coords.length === 2)) {
-            return res.status(400).json({ message: 'Fill all required fields' });
+        if (locationData.public) {
+            if (!((locationData.files.length > 0 || req.files.length > 0) && locationData.name && locationData.location.name && locationData.location.coords.length === 2)) {
+                return res.status(400).json({ message: 'Fill all required fields' });
+            }
         }
 
         // Валидация количества файлов
